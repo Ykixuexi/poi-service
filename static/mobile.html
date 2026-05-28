@@ -34,7 +34,8 @@
         .app {
             display: flex;
             flex-direction: column;
-            height: 100%;
+            height: 100vh;
+            height: 100dvh;
         }
         
         /* 顶部栏 */
@@ -93,15 +94,20 @@
             flex: 1;
             overflow: hidden;
             position: relative;
+            min-height: 0;
         }
         
         .panel {
             position: absolute;
-            inset: 0;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
             overflow-y: auto;
             -webkit-overflow-scrolling: touch;
             padding: 12px;
             display: none;
+            background: var(--bg);
         }
         
         .panel.active {
