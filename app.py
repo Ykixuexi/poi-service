@@ -28,7 +28,7 @@ class BizCode:
     SERVER_ERROR = 5000      # 服务器错误
 
 # ==================== 数据加载 ====================
-DATA_PATH = os.path.join(os.path.dirname(__file__), "..", "数据包", "实验3-POI", "全国文保单位.xlsx")
+DATA_PATH = os.path.join(os.path.dirname(__file__), "data", "全国文保单位.xlsx")
 
 def load_poi_data():
     """加载 POI 数据"""
@@ -362,4 +362,4 @@ def get_batch_stats(auth: dict = Depends(verify_auth)):
 # ==================== 启动 ====================
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8000)
