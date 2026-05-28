@@ -256,11 +256,31 @@
             justify-content: center;
         }
         
-        .draw-btn {
+        .draw-controls {
             position: absolute;
             bottom: 20px;
             left: 50%;
             transform: translateX(-50%);
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .draw-controls.drawing-mode {
+            background: rgba(0,0,0,0.8);
+            padding: 12px 16px;
+            border-radius: 12px;
+        }
+        
+        .draw-hint {
+            font-size: 12px;
+            color: var(--gold);
+            margin-bottom: 4px;
+        }
+        
+        .draw-btn {
             padding: 10px 24px;
             background: var(--gold);
             color: #000;
@@ -268,12 +288,28 @@
             border-radius: 20px;
             font-size: 14px;
             font-weight: 500;
-            z-index: 100;
         }
         
-        .draw-btn.active {
+        .draw-btn.confirm {
+            background: #00ba7c;
+            color: white;
+        }
+        
+        .draw-btn.cancel {
             background: #ef4444;
             color: white;
+            padding: 8px 20px;
+            font-size: 12px;
+        }
+        
+        .drawing-mode .draw-btn {
+            margin: 0 4px;
+        }
+        
+        .draw-controls.drawing-mode {
+            flex-direction: row;
+            flex-wrap: wrap;
+            justify-content: center;
         }
         
         /* 状态 */
@@ -384,9 +420,14 @@
                         <button class="map-btn" @click="zoomOut">−</button>
                         <button class="map-btn" @click="resetView">⌂</button>
                     </div>
-                    <button class="draw-btn" :class="{ active: drawing }" @click="toggleDraw">
-                        {{ drawing ? '取消框选' : '📐 框选查询' }}
-                    </button>
+                    <div class="draw-controls" v-if="!drawing">
+                        <button class="draw-btn" @click="startDraw">📐 框选查询</button>
+                    </div>
+                    <div class="draw-controls drawing-mode" v-else>
+                        <div class="draw-hint">双指缩放确定范围，然后点击确认</div>
+                        <button class="draw-btn confirm" @click="confirmDraw">✓ 确认选区</button>
+                        <button class="draw-btn cancel" @click="cancelDraw">✕ 取消</button>
+                    </div>
                 </div>
                 
                 <!-- 结果 -->
@@ -549,21 +590,25 @@
                 clearMarkers();
             }
 
-            function toggleDraw() {
-                if (drawing.value) {
-                    mouseTool.close();
-                    drawing.value = false;
-                } else {
-                    mouseTool.rectangle({
-                        strokeColor: '#1d9bf0',
-                        strokeWeight: 2,
-                        fillColor: '#1d9bf0',
-                        fillOpacity: 0.1
-                    });
-                    drawing.value = true;
-                    showToast('在地图上拖动框选');
-                }
+            function startDraw() {
+                drawing.value = true;
+                showToast('调整地图视野到目标区域');
             }
+            
+            function confirmDraw() {
+                // 获取当前地图可视范围作为框选范围
+                const bounds = map.getBounds();
+                const sw = bounds.getSouthWest();
+                const ne = bounds.getNorthEast();
+                drawing.value = false;
+                searchByBbox(sw.lng, sw.lat, ne.lng, ne.lat);
+            }
+            
+            function cancelDraw() {
+                drawing.value = false;
+            }
+
+            let currentInfoWindow = null;
 
             function renderMarkers(items) {
                 clearMarkers();
@@ -574,11 +619,33 @@
                         content: `<div style="width:10px;height:10px;background:#1d9bf0;border-radius:50%;border:2px solid rgba(29,155,240,0.3);"></div>`,
                         offset: new AMap.Pixel(-5, -5)
                     });
-                    marker.on('click', () => showInfo(item));
+                    marker._poiData = item;
+                    marker._infoOpen = false;
+                    marker.on('click', () => toggleInfo(marker, item));
                     markers.push(marker);
                     map.add(marker);
                 });
                 if (markers.length > 0) map.setFitView(markers);
+            }
+
+            function toggleInfo(marker, item) {
+                if (marker._infoOpen) {
+                    // 关闭信息窗口
+                    if (currentInfoWindow) {
+                        currentInfoWindow.close();
+                        currentInfoWindow = null;
+                    }
+                    marker._infoOpen = false;
+                } else {
+                    // 先关闭其他所有标记的状态
+                    markers.forEach(m => m._infoOpen = false);
+                    if (currentInfoWindow) {
+                        currentInfoWindow.close();
+                    }
+                    // 打开当前信息窗口
+                    showInfo(item);
+                    marker._infoOpen = true;
+                }
             }
 
             function showInfo(item) {
@@ -592,8 +659,8 @@
                             ${item.add ? `<div>地址：${item.add}</div>` : ''}
                         </div>
                     </div>`;
-                const iw = new AMap.InfoWindow({ content, isCustom: true, offset: new AMap.Pixel(0, -5) });
-                iw.open(map, [item.lon, item.lat]);
+                currentInfoWindow = new AMap.InfoWindow({ content, isCustom: true, offset: new AMap.Pixel(0, -5) });
+                currentInfoWindow.open(map, [item.lon, item.lat]);
             }
 
             function clearMarkers() {
@@ -623,7 +690,7 @@
             return {
                 auth, tab, loading, results, drawing, toast, toastMsg,
                 filters, provinces, types, batches,
-                authenticate, search, clear, toggleDraw, focusPoi,
+                authenticate, search, clear, startDraw, confirmDraw, cancelDraw, focusPoi,
                 zoomIn, zoomOut, resetView
             };
         }
