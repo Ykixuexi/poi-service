@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>文物保护单位 · 移动端</title>
+    <script type="text/javascript">
+        window._AMapSecurityConfig = { securityJsCode: '' }
+    </script>
+    <script src="https://webapi.amap.com/maps?v=1.4.15&key=c3354f3af55988925463414c15042fc4"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --bg: #0f1419;
+            --card: #1a1f26;
+            --border: rgba(255,255,255,0.08);
+            --text: #e7e9ea;
+            --text2: #8b98a5;
+            --blue: #1d9bf0;
+            --gold: #f7b928;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            height: 100vh;
+            height: 100dvh;
+            overflow: hidden;
+        }
+        
+        .app {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+        
+        /* 顶部栏 */
+        .header {
+            padding: 12px 16px;
+            background: var(--card);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .header h1 {
+            font-size: 16px;
+            font-weight: 600;
+        }
+        
+        .auth-btn {
+            padding: 6px 12px;
+            font-size: 12px;
+            background: var(--blue);
+            color: white;
+            border: none;
+            border-radius: 16px;
+        }
+        
+        .auth-btn.done {
+            background: #00ba7c;
+        }
+        
+        /* 标签页 */
+        .tabs {
+            display: flex;
+            background: var(--card);
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .tab {
+            flex: 1;
+            padding: 12px;
+            text-align: center;
+            font-size: 14px;
+            color: var(--text2);
+            border: none;
+            background: none;
+            border-bottom: 2px solid transparent;
+        }
+        
+        .tab.active {
+            color: var(--blue);
+            border-bottom-color: var(--blue);
+        }
+        
+        /* 内容区 */
+        .content {
+            flex: 1;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .panel {
+            position: absolute;
+            inset: 0;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            padding: 12px;
+            display: none;
+        }
+        
+        .panel.active {
+            display: block;
+        }
+        
+        /* 搜索面板 */
+        .search-card {
+            background: var(--card);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 12px;
+        }
+        
+        .field {
+            margin-bottom: 12px;
+        }
+        
+        .field:last-child {
+            margin-bottom: 0;
+        }
+        
+        .field label {
+            display: block;
+            font-size: 12px;
+            color: var(--text2);
+            margin-bottom: 6px;
+        }
+        
+        .field input, .field select {
+            width: 100%;
+            padding: 10px 12px;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            font-size: 14px;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+        
+        .field select {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238b98a5' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            padding-right: 32px;
+        }
+        
+        .btn-row {
+            display: flex;
+            gap: 10px;
+            margin-top: 16px;
+        }
+        
+        .btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        
+        .btn-primary {
+            background: var(--blue);
+            color: white;
+        }
+        
+        .btn-secondary {
+            background: var(--bg);
+            color: var(--text2);
+            border: 1px solid var(--border);
+        }
+        
+        /* 结果列表 */
+        .result-header {
+            padding: 8px 0;
+            font-size: 13px;
+            color: var(--text2);
+        }
+        
+        .poi-card {
+            background: var(--card);
+            border-radius: 10px;
+            padding: 12px;
+            margin-bottom: 10px;
+        }
+        
+        .poi-card h3 {
+            font-size: 15px;
+            font-weight: 500;
+            margin-bottom: 6px;
+        }
+        
+        .poi-tags {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 6px;
+        }
+        
+        .poi-tag {
+            padding: 2px 8px;
+            font-size: 11px;
+            border-radius: 10px;
+            background: rgba(29, 155, 240, 0.15);
+            color: var(--blue);
+        }
+        
+        .poi-tag.batch {
+            background: rgba(247, 185, 40, 0.15);
+            color: var(--gold);
+        }
+        
+        .poi-info {
+            font-size: 12px;
+            color: var(--text2);
+            line-height: 1.5;
+        }
+        
+        /* 地图面板 */
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+        
+        .map-tools {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            z-index: 100;
+        }
+        
+        .map-btn {
+            width: 36px;
+            height: 36px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text);
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .draw-btn {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 10px 24px;
+            background: var(--gold);
+            color: #000;
+            border: none;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 500;
+            z-index: 100;
+        }
+        
+        .draw-btn.active {
+            background: #ef4444;
+            color: white;
+        }
+        
+        /* 状态 */
+        .empty {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text2);
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+        }
+        
+        .spinner {
+            width: 24px;
+            height: 24px;
+            border: 2px solid var(--border);
+            border-top-color: var(--blue);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 10px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* 底部提示 */
+        .toast {
+            position: fixed;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 10px 20px;
+            background: rgba(0,0,0,0.8);
+            color: white;
+            border-radius: 20px;
+            font-size: 13px;
+            z-index: 1000;
+            display: none;
+        }
+        
+        .toast.show {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div class="app">
+            <div class="header">
+                <h1>📍 文物保护单位</h1>
+                <button class="auth-btn" :class="{ done: auth }" @click="authenticate">
+                    {{ auth ? '已认证' : '认证' }}
+                </button>
+            </div>
+            
+            <div class="tabs">
+                <button class="tab" :class="{ active: tab === 'search' }" @click="tab = 'search'">搜索</button>
+                <button class="tab" :class="{ active: tab === 'map' }" @click="tab = 'map'">地图</button>
+                <button class="tab" :class="{ active: tab === 'list' }" @click="tab = 'list'">
+                    结果 <span v-if="results">({{ results.length }})</span>
+                </button>
+            </div>
+            
+            <div class="content">
+                <!-- 搜索 -->
+                <div class="panel" :class="{ active: tab === 'search' }">
+                    <div class="search-card">
+                        <div class="field">
+                            <label>名称</label>
+                            <input v-model="filters.name" placeholder="输入关键词..." @keyup.enter="search">
+                        </div>
+                        <div class="field">
+                            <label>省份</label>
+                            <select v-model="filters.province">
+                                <option value="">全部省份</option>
+                                <option v-for="p in provinces" :value="p">{{ p }}</option>
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label>类型</label>
+                            <select v-model="filters.type">
+                                <option value="">全部类型</option>
+                                <option v-for="t in types" :value="t">{{ t }}</option>
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label>批次</label>
+                            <select v-model="filters.batch">
+                                <option value="">全部批次</option>
+                                <option v-for="b in batches" :value="b">{{ b }}</option>
+                            </select>
+                        </div>
+                        <div class="btn-row">
+                            <button class="btn btn-primary" @click="search">查询</button>
+                            <button class="btn btn-secondary" @click="clear">重置</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 地图 -->
+                <div class="panel" :class="{ active: tab === 'map' }" style="padding:0;">
+                    <div id="map"></div>
+                    <div class="map-tools">
+                        <button class="map-btn" @click="zoomIn">+</button>
+                        <button class="map-btn" @click="zoomOut">−</button>
+                        <button class="map-btn" @click="resetView">⌂</button>
+                    </div>
+                    <button class="draw-btn" :class="{ active: drawing }" @click="toggleDraw">
+                        {{ drawing ? '取消框选' : '📐 框选查询' }}
+                    </button>
+                </div>
+                
+                <!-- 结果 -->
+                <div class="panel" :class="{ active: tab === 'list' }">
+                    <div v-if="loading" class="loading">
+                        <div class="spinner"></div>
+                        <div>加载中...</div>
+                    </div>
+                    
+                    <div v-else-if="!results" class="empty">
+                        请先进行搜索或框选查询
+                    </div>
+                    
+                    <div v-else-if="results.length === 0" class="empty">
+                        未找到结果
+                    </div>
+                    
+                    <template v-else>
+                        <div class="result-header">共 {{ results.length }} 条记录</div>
+                        <div class="poi-card" v-for="item in results" :key="item.code" @click="focusPoi(item)">
+                            <h3>{{ item.name }}</h3>
+                            <div class="poi-tags">
+                                <span class="poi-tag" v-if="item.type">{{ item.type }}</span>
+                                <span class="poi-tag batch" v-if="item.batch">{{ item.batch }}</span>
+                            </div>
+                            <div class="poi-info">
+                                <div v-if="item.add">📍 {{ item.add }}</div>
+                                <div v-if="item.age">🕐 {{ item.age }}</div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+        
+        <div class="toast" :class="{ show: toast }">{{ toastMsg }}</div>
+    </div>
+
+    <script>
+    const { createApp, ref, reactive, onMounted } = Vue;
+
+    createApp({
+        setup() {
+            const auth = ref(false);
+            const tab = ref('search');
+            const loading = ref(false);
+            const results = ref(null);
+            const drawing = ref(false);
+            const toast = ref(false);
+            const toastMsg = ref('');
+
+            const filters = reactive({
+                name: '',
+                province: '',
+                type: '',
+                batch: ''
+            });
+
+            const provinces = ['北京','天津','河北','山西','内蒙古','辽宁','吉林','黑龙江','上海','江苏','浙江','安徽','福建','江西','山东','河南','湖北','湖南','广东','广西','海南','重庆','四川','贵州','云南','西藏','陕西','甘肃','青海','宁夏','新疆'];
+            const types = ['古建筑','古遗址','古墓葬','石窟寺及石刻','近现代重要史迹及代表性建筑'];
+            const batches = ['第一批','第二批','第三批','第四批','第五批','第六批','第七批','第八批'];
+
+            let map = null;
+            let markers = [];
+            let mouseTool = null;
+            let rectangle = null;
+
+            onMounted(() => {
+                map = new AMap.Map('map', {
+                    zoom: 4,
+                    center: [105, 35],
+                    mapStyle: 'amap://styles/dark'
+                });
+
+                AMap.plugin(['AMap.MouseTool'], () => {
+                    mouseTool = new AMap.MouseTool(map);
+                    mouseTool.on('draw', (e) => {
+                        if (e.obj) {
+                            const bounds = e.obj.getBounds();
+                            const sw = bounds.getSouthWest();
+                            const ne = bounds.getNorthEast();
+                            searchByBbox(sw.lng, sw.lat, ne.lng, ne.lat);
+                            if (rectangle) map.remove(rectangle);
+                            rectangle = e.obj;
+                            mouseTool.close();
+                            drawing.value = false;
+                        }
+                    });
+                });
+            });
+
+            const apiKey = 'sicisp2026';
+
+            async function api(endpoint) {
+                if (!auth.value) {
+                    showToast('请先认证');
+                    return null;
+                }
+                const url = `${endpoint}${endpoint.includes('?') ? '&' : '?'}apikey=${apiKey}`;
+                try {
+                    const res = await fetch(url);
+                    const data = await res.json();
+                    if (data.code !== 200) {
+                        showToast(data.message);
+                        return null;
+                    }
+                    return data.data;
+                } catch (err) {
+                    showToast('请求失败');
+                    return null;
+                }
+            }
+
+            function authenticate() {
+                auth.value = true;
+                showToast('认证成功');
+            }
+
+            async function search() {
+                loading.value = true;
+                let endpoint = '';
+                if (filters.name) {
+                    endpoint = `/api/poi/search?name=${encodeURIComponent(filters.name)}`;
+                } else {
+                    let params = ['size=3000'];
+                    if (filters.province) params.push(`province=${encodeURIComponent(filters.province)}`);
+                    if (filters.type) params.push(`type=${encodeURIComponent(filters.type)}`);
+                    if (filters.batch) params.push(`batch=${encodeURIComponent(filters.batch)}`);
+                    endpoint = `/api/poi?${params.join('&')}`;
+                }
+                const data = await api(endpoint);
+                loading.value = false;
+                if (data) {
+                    results.value = data.items || [data];
+                    renderMarkers(results.value);
+                    tab.value = 'list';
+                    showToast(`找到 ${results.value.length} 条`);
+                }
+            }
+
+            async function searchByBbox(minLon, minLat, maxLon, maxLat) {
+                loading.value = true;
+                tab.value = 'list';
+                const endpoint = `/api/poi/bbox?min_lon=${minLon}&min_lat=${minLat}&max_lon=${maxLon}&max_lat=${maxLat}`;
+                const data = await api(endpoint);
+                loading.value = false;
+                if (data) {
+                    results.value = data.items || [];
+                    renderMarkers(results.value);
+                    showToast(`框选到 ${results.value.length} 条`);
+                }
+            }
+
+            function clear() {
+                filters.name = '';
+                filters.province = '';
+                filters.type = '';
+                filters.batch = '';
+                results.value = null;
+                clearMarkers();
+            }
+
+            function toggleDraw() {
+                if (drawing.value) {
+                    mouseTool.close();
+                    drawing.value = false;
+                } else {
+                    mouseTool.rectangle({
+                        strokeColor: '#1d9bf0',
+                        strokeWeight: 2,
+                        fillColor: '#1d9bf0',
+                        fillOpacity: 0.1
+                    });
+                    drawing.value = true;
+                    showToast('在地图上拖动框选');
+                }
+            }
+
+            function renderMarkers(items) {
+                clearMarkers();
+                items.forEach(item => {
+                    if (!item.lon || !item.lat) return;
+                    const marker = new AMap.Marker({
+                        position: [item.lon, item.lat],
+                        content: `<div style="width:10px;height:10px;background:#1d9bf0;border-radius:50%;border:2px solid rgba(29,155,240,0.3);"></div>`,
+                        offset: new AMap.Pixel(-5, -5)
+                    });
+                    marker.on('click', () => showInfo(item));
+                    markers.push(marker);
+                    map.add(marker);
+                });
+                if (markers.length > 0) map.setFitView(markers);
+            }
+
+            function showInfo(item) {
+                const content = `
+                    <div style="padding:12px;background:#1a1f26;border-radius:8px;color:#e7e9ea;max-width:240px;font-size:13px;">
+                        <div style="font-weight:600;margin-bottom:6px;color:#1d9bf0;">${item.name}</div>
+                        <div style="color:#8b98a5;line-height:1.6;">
+                            ${item.type ? `<div>类型：${item.type}</div>` : ''}
+                            ${item.batch ? `<div>批次：${item.batch}</div>` : ''}
+                            ${item.age ? `<div>年代：${item.age}</div>` : ''}
+                            ${item.add ? `<div>地址：${item.add}</div>` : ''}
+                        </div>
+                    </div>`;
+                const iw = new AMap.InfoWindow({ content, isCustom: true, offset: new AMap.Pixel(0, -5) });
+                iw.open(map, [item.lon, item.lat]);
+            }
+
+            function clearMarkers() {
+                markers.forEach(m => map.remove(m));
+                markers = [];
+                if (rectangle) { map.remove(rectangle); rectangle = null; }
+            }
+
+            function focusPoi(item) {
+                tab.value = 'map';
+                setTimeout(() => {
+                    map.setZoomAndCenter(12, [item.lon, item.lat]);
+                    showInfo(item);
+                }, 100);
+            }
+
+            function zoomIn() { map.setZoom(map.getZoom() + 1); }
+            function zoomOut() { map.setZoom(map.getZoom() - 1); }
+            function resetView() { map.setZoomAndCenter(4, [105, 35]); }
+
+            function showToast(msg) {
+                toastMsg.value = msg;
+                toast.value = true;
+                setTimeout(() => toast.value = false, 2000);
+            }
+
+            return {
+                auth, tab, loading, results, drawing, toast, toastMsg,
+                filters, provinces, types, batches,
+                authenticate, search, clear, toggleDraw, focusPoi,
+                zoomIn, zoomOut, resetView
+            };
+        }
+    }).mount('#app');
+    </script>
+</body>
+</html>
