@@ -363,9 +363,6 @@
         <div class="app">
             <div class="header">
                 <h1>📍 文物保护单位</h1>
-                <button class="auth-btn" :class="{ done: auth }" @click="authenticate">
-                    {{ auth ? '已认证' : '认证' }}
-                </button>
             </div>
             
             <div class="tabs">
@@ -471,7 +468,7 @@
 
     createApp({
         setup() {
-            const auth = ref(false);
+            const auth = ref(true);  // 自动认证
             const tab = ref('search');
             const loading = ref(false);
             const results = ref(null);

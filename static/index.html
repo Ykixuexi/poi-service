@@ -670,16 +670,6 @@
                     </div>
                 </div>
 
-                <div class="auth-bar">
-                    <div class="auth-indicator">
-                        <div class="auth-dot" :class="{ active: authenticated }"></div>
-                        <span>{{ authenticated ? '已授权 · API Key' : '未授权' }}</span>
-                    </div>
-                    <button class="auth-btn" :class="{ authenticated }" @click="authenticate">
-                        {{ authenticated ? '有效' : '认证' }}
-                    </button>
-                </div>
-
                 <div class="search-section">
                     <div class="search-row">
                         <label class="search-label">名称检索</label>
@@ -776,7 +766,7 @@
     createApp({
         setup() {
             // 状态
-            const authenticated = ref(false);
+            const authenticated = ref(true);  // 自动认证
             const loading = ref(false);
             const results = ref(null);
             const errorMsg = ref('');
