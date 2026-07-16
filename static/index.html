@@ -1,0 +1,1065 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<script>if(/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent))window.location.href='mobile.html';</script>
+<title>全国文物保护单位</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Serif+SC:wght@400;600&display=swap" rel="stylesheet">
+<script>window._AMapSecurityConfig={securityJsCode:''}</script>
+<script src="https://webapi.amap.com/maps?v=1.4.15&key=c3354f3af55988925463414c15042fc4"></script>
+<script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+<style>
+:root{
+  --bg:#0b0f15;
+  --surface:rgba(18,23,33,0.88);
+  --surface-hover:rgba(28,35,48,0.92);
+  --border:rgba(255,255,255,0.08);
+  --border-focus:rgba(255,255,255,0.18);
+  --text:#e8ecf1;
+  --text-muted:#8b95a5;
+  --accent:#d4973b;
+  --accent-glow:rgba(212,151,59,0.18);
+  --danger:#e0554a;
+  --radius:14px;
+  --radius-sm:8px;
+  --radius-pill:9999px;
+  --ease:cubic-bezier(0.22,1,0.36,1);
+  --font:'Inter',-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;
+  --font-serif:'Noto Serif SC',"PingFang SC","Microsoft YaHei",serif;
+}
+
+*{margin:0;padding:0;box-sizing:border-box}
+
+body{
+  font-family:var(--font);font-size:14px;line-height:1.5;font-weight:400;
+  color:var(--text);background:#000;overflow:hidden;height:100vh;
+  -webkit-font-smoothing:antialiased;
+}
+
+#app{width:100%;height:100vh;position:relative;overflow:hidden}
+
+/* ═══ Map (full viewport, behind everything) ═══ */
+#map{position:absolute;inset:0;z-index:0}
+
+/* ═══ Floating Search Bar (top center) ═══ */
+.search-float{
+  position:absolute;top:18px;left:50%;transform:translateX(-50%);z-index:20;
+  display:flex;align-items:center;gap:8px;
+  background:var(--surface);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  border:1px solid var(--border);border-radius:var(--radius-pill);
+  padding:6px 8px 6px 20px;box-shadow:0 4px 24px rgba(0,0,0,0.4);
+  transition:border-color 0.2s var(--ease),box-shadow 0.2s var(--ease);
+  max-width:calc(100vw - 36px);
+}
+.search-float:focus-within{border-color:var(--border-focus);box-shadow:0 4px 24px rgba(0,0,0,0.5),0 0 0 1px var(--accent-glow)}
+.search-float input{
+  width:260px;background:none;border:none;outline:none;
+  font-family:var(--font);font-size:15px;color:var(--text);
+  caret-color:var(--accent);
+}
+.search-float input::placeholder{color:var(--text-muted)}
+.search-float .divider{width:1px;height:22px;background:var(--border)}
+.search-float .chip{
+  padding:6px 14px;font-family:var(--font);font-size:13px;font-weight:500;
+  color:var(--text-muted);background:rgba(255,255,255,0.04);
+  border:1px solid var(--border);border-radius:var(--radius-pill);
+  cursor:pointer;white-space:nowrap;transition:all 0.15s var(--ease);
+}
+.search-float .chip:hover{color:var(--text);background:rgba(255,255,255,0.08)}
+.search-float .chip.on{color:var(--accent);border-color:rgba(212,151,59,0.35);background:var(--accent-glow)}
+.search-float .btn-search{
+  width:36px;height:36px;border-radius:50%;border:none;cursor:pointer;
+  background:var(--accent);color:#0b0f15;font-size:15px;font-weight:700;
+  display:flex;align-items:center;justify-content:center;
+  transition:all 0.15s var(--ease);flex-shrink:0;
+}
+.search-float .btn-search:hover{transform:scale(1.05);box-shadow:0 0 16px var(--accent-glow)}
+.search-float .btn-search:active{transform:scale(0.95)}
+
+/* ═══ Filter Panel (slide down from search bar) ═══ */
+.filter-panel{
+  position:absolute;top:82px;left:50%;transform:translateX(-50%) translateY(-12px);z-index:19;
+  background:var(--surface);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  border:1px solid var(--border);border-radius:var(--radius);
+  padding:14px 18px;display:flex;gap:10px;flex-wrap:wrap;
+  box-shadow:0 8px 32px rgba(0,0,0,0.5);
+  opacity:0;pointer-events:none;transition:all 0.2s var(--ease);
+  max-width:calc(100vw - 36px);
+}
+.filter-panel.show{opacity:1;pointer-events:auto;transform:translateX(-50%) translateY(0)}
+.filter-panel select{
+  padding:8px 32px 8px 14px;font-family:var(--font);font-size:13px;font-weight:500;
+  color:var(--text);background:rgba(18,23,33,0.95);border:1px solid var(--border);
+  border-radius:var(--radius-pill);outline:none;cursor:pointer;appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%238b95a5' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 12px center;
+  transition:all 0.15s var(--ease);
+}
+.filter-panel select option{color:var(--text);background:#121721}
+.filter-panel select:hover{border-color:var(--border-focus)}
+.filter-panel select:focus{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-glow)}
+
+/* ═══ Map Controls (top right) ═══ */
+.map-ctrls{
+  position:absolute;top:18px;right:16px;z-index:20;
+  display:flex;flex-direction:column;gap:6px;
+}
+.map-ctrl{
+  width:38px;height:38px;border-radius:50%;border:1px solid var(--border);cursor:pointer;
+  background:var(--surface);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  color:var(--text);font-size:16px;display:flex;align-items:center;justify-content:center;
+  transition:all 0.15s var(--ease);user-select:none;
+}
+.map-ctrl:hover{background:var(--surface-hover);border-color:var(--border-focus)}
+.map-ctrl:active{transform:scale(0.92)}
+
+/* ═══ Stats Badge (bottom-left, above carousel) ═══ */
+.stats-badge{
+  position:absolute;bottom:190px;left:16px;z-index:20;
+  display:flex;gap:16px;padding:8px 16px;
+  background:var(--surface);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  border:1px solid var(--border);border-radius:var(--radius-pill);
+  font-size:12px;font-weight:500;color:var(--text-muted);
+  transition:all 0.3s var(--ease);
+}
+.stats-badge span{color:var(--text);font-weight:700;margin-left:3px}
+.stats-badge .sep{width:1px;background:var(--border)}
+
+/* ═══ Bottom Carousel ═══ */
+.carousel-wrap{
+  position:absolute;bottom:0;left:0;right:0;z-index:20;
+  padding:0 16px 20px;
+  opacity:0;transform:translateY(20px);pointer-events:none;
+  transition:all 0.35s var(--ease);
+}
+.carousel-wrap.show{opacity:1;transform:translateY(0);pointer-events:auto}
+.carousel-header{
+  display:flex;align-items:center;justify-content:space-between;padding:0 4px 10px;
+}
+.carousel-header .count{font-size:12px;color:var(--text-muted);font-weight:500}
+.carousel-header .count strong{color:var(--text);font-weight:700}
+.carousel-header .view-tog{display:flex;gap:2px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-pill);padding:2px}
+.carousel-header .view-tog button{
+  padding:5px 14px;font-family:var(--font);font-size:11px;font-weight:600;border:none;
+  border-radius:var(--radius-pill);cursor:pointer;background:transparent;color:var(--text-muted);
+  transition:all 0.15s var(--ease);
+}
+.carousel-header .view-tog button.active{background:rgba(255,255,255,0.08);color:var(--text)}
+.carousel-track{
+  display:flex;gap:10px;overflow-x:auto;scroll-snap-type:x mandatory;
+  padding-bottom:6px;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,0.12) transparent;
+}
+.carousel-track::-webkit-scrollbar{height:5px}
+.carousel-track::-webkit-scrollbar-track{background:transparent}
+.carousel-track::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.12);border-radius:3px}
+.carousel-track::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,0.22)}
+.carousel-card{
+  min-width:240px;max-width:260px;scroll-snap-align:start;flex-shrink:0;
+  background:var(--surface);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  border:1px solid var(--border);border-radius:var(--radius);padding:16px;
+  cursor:pointer;transition:all 0.2s var(--ease);position:relative;
+}
+.carousel-card:hover{
+  background:var(--surface-hover);border-color:rgba(212,151,59,0.3);
+  transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,0.4);
+}
+.carousel-card:active{transform:scale(0.97)}
+.carousel-card .name{font-family:var(--font-serif);font-size:15px;font-weight:600;color:var(--text);margin-bottom:8px;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+}
+.carousel-card .tags{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.carousel-card .tag{display:inline-flex;padding:3px 10px;font-size:11px;font-weight:600;border-radius:4px}
+.carousel-card .tag.t1{color:var(--accent);background:rgba(212,151,59,0.12)}
+.carousel-card .tag.t2{color:#8ba5c4;background:rgba(139,165,196,0.1)}
+.carousel-card .tag.t3{color:#7aad7a;background:rgba(122,173,122,0.1)}
+.carousel-card .addr{font-size:12px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.carousel-card .btn-buffer{
+  margin-top:10px;padding:5px 12px;font-size:11px;font-weight:600;
+  border:1px solid rgba(212,151,59,0.35);border-radius:var(--radius-pill);
+  cursor:pointer;background:var(--accent-glow);color:var(--accent);
+  transition:all 0.15s var(--ease);width:100%;
+}
+.carousel-card .btn-buffer:hover{background:rgba(212,151,59,0.25);border-color:var(--accent)}
+
+/* ═══ Table view (bottom sheet variant) ═══ */
+.table-wrap{
+  position:absolute;bottom:0;left:0;right:0;max-height:40vh;z-index:20;
+  overflow-y:auto;opacity:0;transform:translateY(20px);pointer-events:none;
+  transition:all 0.35s var(--ease);
+  background:var(--surface);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+  border-top:1px solid var(--border);
+}
+.table-wrap.show{opacity:1;transform:translateY(0);pointer-events:auto}
+.table-wrap table{width:100%;border-collapse:collapse;font-size:13px}
+.table-wrap th{
+  text-align:left;padding:10px 16px;font-weight:600;font-size:11px;
+  color:var(--text-muted);background:rgba(255,255,255,0.02);position:sticky;top:0;
+  border-bottom:1px solid var(--border);
+}
+.table-wrap td{padding:10px 16px;border-bottom:1px solid rgba(255,255,255,0.04)}
+.table-wrap tr{cursor:pointer;transition:background 0.1s}
+.table-wrap tr:hover{background:rgba(212,151,59,0.06)}
+.table-wrap .btn-buffer-table{
+  padding:4px 10px;font-size:10px;font-weight:600;
+  border:1px solid rgba(212,151,59,0.35);border-radius:var(--radius-pill);
+  cursor:pointer;background:var(--accent-glow);color:var(--accent);
+  transition:all 0.15s var(--ease);
+}
+.table-wrap .btn-buffer-table:hover{background:rgba(212,151,59,0.25);border-color:var(--accent)}
+
+/* ═══ Buffer Modal ═══ */
+.buffer-overlay{
+  position:fixed;inset:0;z-index:100;background:rgba(0,0,0,0.55);
+  display:flex;align-items:center;justify-content:center;
+  backdrop-filter:blur(4px);
+}
+.buffer-dialog{
+  background:var(--surface);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  border:1px solid var(--border);border-radius:var(--radius);padding:24px;
+  min-width:300px;max-width:90vw;box-shadow:0 16px 48px rgba(0,0,0,0.6);
+}
+.buffer-dialog h3{
+  font-family:var(--font-serif);font-size:16px;font-weight:600;color:var(--text);margin-bottom:6px;
+}
+.buffer-dialog .sub{font-size:12px;color:var(--text-muted);margin-bottom:16px}
+.buffer-dialog input{
+  width:100%;padding:10px 14px;font-size:14px;border:1px solid var(--border);
+  border-radius:var(--radius-sm);background:rgba(255,255,255,0.04);color:var(--text);
+  outline:none;margin-bottom:16px;transition:border-color 0.2s;
+}
+.buffer-dialog input:focus{border-color:var(--accent)}
+.buffer-dialog .btns{display:flex;gap:8px;justify-content:flex-end}
+.buffer-dialog .btns button{
+  padding:8px 20px;font-size:13px;font-weight:600;border:none;border-radius:var(--radius-pill);cursor:pointer;
+}
+.buffer-dialog .btns .btn-cancel{background:rgba(255,255,255,0.06);color:var(--text-muted)}
+.buffer-dialog .btns .btn-confirm{background:var(--accent);color:#0b0f15}
+.buffer-dialog .result{font-size:12px;color:var(--text-muted);margin-top:10px;line-height:1.6}
+.buffer-dialog .result strong{color:var(--accent)}
+
+/* ═══ States ═══ */
+.state-float{
+  position:absolute;bottom:100px;left:50%;transform:translateX(-50%);z-index:18;
+  display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;
+  padding:20px 32px;background:var(--surface);backdrop-filter:blur(12px);
+  border:1px solid var(--border);border-radius:var(--radius);
+  pointer-events:none;
+}
+.state-float .icon{font-size:24px;opacity:0.5}
+.state-float .msg{font-size:13px;color:var(--text-muted);line-height:1.6;max-width:280px}
+.skel-row{height:14px;background:rgba(255,255,255,0.04);border-radius:4px;margin-bottom:8px;animation:shimmer 1.6s ease-in-out infinite}
+.skel-row.w2{width:70%}.skel-row.w3{width:45%}
+@keyframes shimmer{0%,100%{opacity:0.3}50%{opacity:0.6}}
+
+/* ═══ Reduced motion ═══ */
+@media(prefers-reduced-motion:reduce){
+  .carousel-wrap,.filter-panel,.buffer-overlay,.search-float *{transition:none!important;animation:none!important}
+}
+
+/* ═══ Responsive ═══ */
+@media(max-width:768px){
+  .search-float input{width:140px;font-size:14px}
+  .search-float{padding:6px 6px 6px 14px;gap:4px}
+  .search-float .chip{padding:5px 10px;font-size:11px}
+  .carousel-card{min-width:200px;max-width:220px}
+  .stats-badge{bottom:170px;font-size:10px;gap:10px;padding:6px 12px}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="map"></div>
+
+  <!-- Floating Search -->
+  <div class="search-float">
+    <input type="text" v-model="filters.name" @keyup.enter="search" placeholder="搜索文物名称…">
+    <div class="divider"></div>
+    <div class="chip" :class="{on:showFilter}" @click="showFilter=!showFilter">筛选</div>
+    <div class="chip" :class="{on:drawMode}" @click="toggleDraw">框选</div>
+    <div class="chip" @click="doReset">重置</div>
+    <button class="btn-search" @click="search" :disabled="loading">→</button>
+  </div>
+
+  <!-- Filter Panel -->
+  <div class="filter-panel" :class="{show:showFilter}">
+    <select v-model="filters.province"><option value="">全部省份</option><option v-for="p in provinces" :value="p">{{p}}</option></select>
+    <select v-model="filters.type"><option value="">全部类型</option><option v-for="t in types" :value="t">{{t}}</option></select>
+    <select v-model="filters.batch"><option value="">全部批次</option><option v-for="b in batches" :value="b">{{b}}</option></select>
+  </div>
+
+  <!-- Map Controls -->
+  <div class="map-ctrls">
+    <div class="map-ctrl" @click="zoomIn">+</div>
+    <div class="map-ctrl" @click="zoomOut">−</div>
+    <div class="map-ctrl" @click="resetView">◎</div>
+    <div class="map-ctrl" title="半径查询" @click="toggleRadius" :style="{color:radiusMode?'var(--accent)':''}">⊙</div>
+    <div class="map-ctrl" title="添加文物" @click="openAddPoi" v-if="authenticated" style="font-weight:700">＋</div>
+  </div>
+
+  <!-- Auth -->
+  <div style="position:absolute;top:70px;right:64px;z-index:20;display:flex;align-items:center;gap:6px;background:var(--surface);backdrop-filter:blur(12px);border:1px solid var(--border);border-radius:var(--radius-pill);padding:4px 8px 4px 14px;font-size:12px" v-if="!authenticated">
+    <input v-model="authUsername" placeholder="用户名" style="width:70px;padding:4px 8px;font-size:11px;border:1px solid var(--border);border-radius:var(--radius-sm);background:rgba(255,255,255,0.04);color:var(--text);outline:none" @keyup.enter="login">
+    <input v-model="authPassword" placeholder="密码" type="password" style="width:70px;padding:4px 8px;font-size:11px;border:1px solid var(--border);border-radius:var(--radius-sm);background:rgba(255,255,255,0.04);color:var(--text);outline:none" @keyup.enter="login">
+    <button style="padding:4px 12px;font-size:11px;font-weight:600;border:none;border-radius:var(--radius-pill);cursor:pointer;background:var(--accent);color:#0b0f15" @click="login">登录</button>
+    <button style="padding:4px 12px;font-size:11px;font-weight:600;border:none;border-radius:var(--radius-pill);cursor:pointer;background:rgba(255,255,255,0.06);color:var(--text-muted)" @click="register">注册</button>
+    <span style="font-size:10px;color:var(--accent)" v-if="authMsg">{{authMsg}}</span>
+  </div>
+  <div style="position:absolute;top:70px;right:64px;z-index:20;display:flex;align-items:center;gap:6px;background:var(--surface);backdrop-filter:blur(12px);border:1px solid var(--border);border-radius:var(--radius-pill);padding:4px 14px;font-size:12px" v-else>
+    <span style="color:var(--accent)">{{authUsername}}</span>
+    <span style="color:var(--text-muted)">· 已登录</span>
+    <button style="padding:4px 12px;font-size:11px;font-weight:600;border:none;border-radius:var(--radius-pill);cursor:pointer;background:rgba(255,255,255,0.06);color:var(--text-muted)" @click="logout">退出</button>
+  </div>
+
+  <!-- Radius Control -->
+  <div style="position:absolute;top:120px;left:16px;z-index:20;background:var(--surface);backdrop-filter:blur(12px);border:1px solid var(--border);border-radius:var(--radius);padding:12px;display:flex;flex-direction:column;gap:6px;min-width:180px" v-if="radiusMode">
+    <div style="font-size:11px;color:var(--text-muted)">半径查询（点击地图选中心）</div>
+    <input v-model="radiusCenter" placeholder="点击地图获取坐标" readonly style="width:100%;padding:6px 10px;font-size:12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:rgba(255,255,255,0.04);color:var(--text);outline:none">
+    <input v-model.number="radiusVal" placeholder="半径（米）" type="number" style="width:100%;padding:6px 10px;font-size:12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:rgba(255,255,255,0.04);color:var(--text);outline:none">
+    <button style="padding:6px 12px;font-size:11px;font-weight:600;border:none;border-radius:var(--radius-pill);cursor:pointer;background:var(--accent);color:#0b0f15" @click="radiusSearch">查询</button>
+  </div>
+
+  <!-- Pick-coords floating toast -->
+  <div style="position:absolute;top:24px;left:50%;transform:translateX(-50%);z-index:101;display:flex;align-items:center;gap:10px;padding:8px 18px;background:var(--surface);backdrop-filter:blur(12px);border:1px solid var(--accent);border-radius:var(--radius-pill);font-size:13px;font-weight:500;color:var(--accent);box-shadow:0 4px 16px rgba(0,0,0,0.5)" v-if="poiPickMode">
+    📌 请在地图上点击选择坐标
+    <button @click="cancelPickCoords" style="padding:4px 14px;font-size:11px;font-weight:600;border:none;border-radius:var(--radius-pill);cursor:pointer;background:rgba(255,255,255,0.06);color:var(--text-muted)">取消</button>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-badge">
+    <div>总计<span>{{stats.total}}</span></div><div class="sep"></div>
+    <div>省份<span>{{stats.provinces}}</span></div><div class="sep"></div>
+    <div>类型<span>{{stats.types}}</span></div>
+  </div>
+
+  <!-- Loading -->
+  <div v-if="loading" class="state-float">
+    <div class="skel-row" style="width:180px"></div>
+    <div class="skel-row w2" style="width:140px"></div>
+    <div class="skel-row w3" style="width:100px"></div>
+  </div>
+
+  <!-- Not logged in hint -->
+  <div v-else-if="!authenticated && !results && !errorMsg" class="state-float">
+    <div class="icon">🔒</div>
+    <div class="msg">请先登录后查询数据<br>在右上角输入用户名和密码</div>
+  </div>
+
+  <!-- Empty -->
+  <div v-else-if="!results && !errorMsg" class="state-float">
+    <div class="icon">◈</div>
+    <div class="msg">输入名称或使用筛选条件<br>点击「→」查询</div>
+  </div>
+
+  <!-- Error -->
+  <div v-else-if="errorMsg" class="state-float">
+    <div class="icon" style="color:var(--danger)">!</div>
+    <div class="msg" style="color:var(--danger)">{{errorMsg}}</div>
+  </div>
+
+  <!-- ═══ Results: Card Carousel ═══ -->
+  <div class="carousel-wrap" :class="{show:results && results.length>0 && viewMode==='card'}">
+    <div class="carousel-header">
+      <div class="count">共<strong>{{results?results.length:0}}</strong>条</div>
+      <div class="view-tog">
+        <button :class="{active:viewMode==='card'}" @click="viewMode='card'">卡片</button>
+        <button :class="{active:viewMode==='table'}" @click="viewMode='table'">表格</button>
+      </div>
+    </div>
+    <div class="carousel-track">
+      <div class="carousel-card" v-for="item in results" :key="item.id" @click="focusPoi(item)">
+        <div class="name">{{item.name}}</div>
+        <div class="tags">
+          <span class="tag t1" v-if="item.type">{{item.type}}</span>
+          <span class="tag t2" v-if="item.batch">{{item.batch}}</span>
+          <span class="tag t3" v-if="item.age">{{item.age}}</span>
+        </div>
+        <div class="addr" v-if="item.address">{{item.address}}</div>
+        <button class="btn-buffer" @click.stop="openBuffer(item)">◉ 缓冲区分析</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ Results: Table ═══ -->
+  <div class="table-wrap" :class="{show:results && results.length>0 && viewMode==='table'}">
+    <div class="carousel-header" style="padding:12px 16px 8px;position:sticky;top:0;background:inherit">
+      <div class="count">共<strong>{{results?results.length:0}}</strong>条</div>
+      <div class="view-tog">
+        <button :class="{active:viewMode==='card'}" @click="viewMode='card'">卡片</button>
+        <button :class="{active:viewMode==='table'}" @click="viewMode='table'">表格</button>
+      </div>
+    </div>
+    <table>
+      <thead><tr><th>名称</th><th>类型</th><th>年代</th><th>批次</th><th>地址</th><th>操作</th></tr></thead>
+      <tbody>
+        <tr v-for="item in results" :key="item.id" @click="focusPoi(item)">
+          <td style="font-weight:600">{{item.name}}</td>
+          <td><span class="tag t1" v-if="item.type">{{item.type}}</span></td>
+          <td style="color:var(--text-muted)">{{item.age||'—'}}</td>
+          <td><span class="tag t2" v-if="item.batch">{{item.batch}}</span></td>
+          <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-muted)">{{item.address||'—'}}</td>
+          <td><button class="btn-buffer-table" @click.stop="openBuffer(item)">缓冲区</button></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ═══ Buffer Analysis Modal ═══ -->
+  <div class="buffer-overlay" v-if="bufferModal.show" @click.self="closeBuffer">
+    <div class="buffer-dialog">
+      <h3>缓冲区分析</h3>
+      <div class="sub">以「{{bufferModal.poiName}}」为中心，查询周边文物</div>
+      <input v-model.number="bufferModal.radius" placeholder="半径（米，最大200000）" type="number" @keyup.enter="doBufferAnalysis">
+      <div class="btns">
+        <button class="btn-cancel" @click="closeBuffer">取消</button>
+        <button class="btn-confirm" @click="doBufferAnalysis" :disabled="bufferModal.loading">
+          {{bufferModal.loading?'分析中…':'开始分析'}}
+        </button>
+      </div>
+      <div class="result" v-if="bufferModal.result">
+        共找到 <strong>{{bufferModal.result.total}}</strong> 个周边文物 · 缓冲区面积 <strong>{{bufferModal.result.area}}</strong> 公顷
+        <br><span style="color:var(--accent);cursor:pointer" @click="viewBufferResults">查看结果</span>
+        <span style="margin-left:8px;color:var(--text-muted);cursor:pointer" @click="clearBufferOnMap">清除地图</span>
+      </div>
+      <div class="result" v-if="bufferModal.error" style="color:var(--danger)">{{bufferModal.error}}</div>
+    </div>
+  </div>
+
+  <!-- ═══ POI Add/Edit Modal ═══ -->
+  <div class="buffer-overlay" v-if="poiModal.show" @click.self="closePoiModal">
+    <div class="buffer-dialog" style="max-width:420px;max-height:85vh;overflow-y:auto">
+      <h3>{{poiModal.editing ? '编辑文物' : '添加文物'}}</h3>
+      <div class="sub" v-if="poiModal.error" style="color:var(--danger)">{{poiModal.error}}</div>
+      <input v-model="poiModal.name" placeholder="名称 *" style="margin-bottom:8px">
+      <select v-model="poiModal.type" style="width:100%;padding:10px 14px;font-size:14px;border:1px solid var(--border);border-radius:var(--radius-sm);background:rgba(255,255,255,0.04);color:var(--text);outline:none;margin-bottom:8px;appearance:none;cursor:pointer">
+        <option value="" style="background:#121721;color:var(--text-muted)">选择类型</option>
+        <option v-for="t in types" :value="t" style="background:#121721;color:var(--text)">{{t}}</option>
+      </select>
+      <select v-model="poiModal.batch" style="width:100%;padding:10px 14px;font-size:14px;border:1px solid var(--border);border-radius:var(--radius-sm);background:rgba(255,255,255,0.04);color:var(--text);outline:none;margin-bottom:8px;appearance:none;cursor:pointer">
+        <option value="" style="background:#121721;color:var(--text-muted)">选择批次</option>
+        <option v-for="b in batches" :value="b" style="background:#121721;color:var(--text)">{{b}}</option>
+      </select>
+      <input v-model="poiModal.age" placeholder="年代" style="margin-bottom:8px">
+      <input v-model="poiModal.address" placeholder="地址" style="margin-bottom:8px">
+      <div style="display:flex;gap:8px;margin-bottom:8px">
+        <input v-model="poiModal.lon" placeholder="经度 *" style="flex:1">
+        <input v-model="poiModal.lat" placeholder="纬度 *" style="flex:1">
+        <button @click="pickCoords" style="white-space:nowrap;padding:0 12px;font-size:12px;height:42px;border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;background:rgba(255,255,255,0.04);color:var(--text-muted);transition:all 0.15s" :style="{color:poiPickMode?'var(--accent)':'var(--text-muted)',borderColor:poiPickMode?'var(--accent)':'var(--border)'}">{{poiPickMode?'点击地图…':'地图选点'}}</button>
+      </div>
+      <input v-model="poiModal.remark" placeholder="备注" style="margin-bottom:16px">
+      <div class="btns">
+        <button class="btn-cancel" @click="closePoiModal">取消</button>
+        <button v-if="poiModal.editing" class="btn-cancel" style="color:var(--danger);margin-right:auto" @click="deletePoi(poiModal.id)" :disabled="poiModal.loading">删除</button>
+        <button class="btn-confirm" @click="savePoi" :disabled="poiModal.loading">
+          {{poiModal.loading?'保存中…':'保存'}}
+        </button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const { createApp, ref, reactive, onMounted } = Vue;
+
+createApp({ setup() {
+const loading = ref(false), results = ref(null), errorMsg = ref(''), drawMode = ref(false);
+const markerCount = ref(0), viewMode = ref('card'), showFilter = ref(false);
+let infoWindow = null;
+const stats = reactive({ total: '—', provinces: '—', types: '—' });
+const filters = reactive({ name: '', province: '', type: '', batch: '' });
+const provinces = ['北京','天津','河北','山西','内蒙古','辽宁','吉林','黑龙江','上海','江苏','浙江','安徽','福建','江西','山东','河南','湖北','湖南','广东','广西','海南','重庆','四川','贵州','云南','西藏','陕西','甘肃','青海','宁夏','新疆'];
+const types = ['古建筑','古遗址','古墓葬','石窟寺及石刻','近现代重要史迹及代表性建筑'];
+const batches = ['第一批','第二批','第三批','第四批','第五批','第六批','第七批','第八批'];
+
+// ── Auth state ──
+const authenticated = ref(false);
+const authUsername = ref('');
+const authPassword = ref('');
+const authMsg = ref('');
+const token = ref('');
+const currentUser = ref('');
+
+// ── Radius query state ──
+const radiusMode = ref(false);
+const radiusCenter = ref('');
+const radiusVal = ref(null);
+
+// ── POI CRUD state ──
+const poiModal = reactive({
+  show: false, editing: false, id: null,
+  name: '', type: '', age: '', address: '', batch: '',
+  lon: '', lat: '', remark: '',
+  loading: false, error: ''
+});
+const poiPickMode = ref(false);
+
+// ── Buffer analysis state ──
+const bufferModal = reactive({
+  show: false, poiId: null, poiName: '', radius: null,
+  loading: false, result: null, error: ''
+});
+let bufferPolygons = [];   // track buffer polygons on map
+let bufferMarkers = [];    // track buffer result markers
+
+const BASE = window.location.origin;
+let map = null, markers = [], rectangle = null, mouseTool = null;
+
+// ═══ Init ═══
+onMounted(() => {
+  map = new AMap.Map('map', { zoom: 4.5, center: [105, 35], mapStyle: 'amap://styles/dark', resizeEnable: true });
+  AMap.plugin(['AMap.MouseTool'], () => {
+    mouseTool = new AMap.MouseTool(map);
+    mouseTool.on('draw', e => {
+      if (e.obj) {
+        let b = e.obj.getBounds();
+        searchByBbox(b.getSouthWest().lng, b.getSouthWest().lat, b.getNorthEast().lng, b.getNorthEast().lat);
+        if (rectangle) map.remove(rectangle);
+        rectangle = e.obj; drawMode.value = false;
+      }
+    });
+  });
+
+  // Radius mode & poi-pick mode: click map to set coordinate
+  map.on('click', e => {
+    if (radiusMode.value) {
+      radiusCenter.value = e.lnglat.getLng().toFixed(6) + ', ' + e.lnglat.getLat().toFixed(6);
+    }
+    if (poiPickMode.value) {
+      poiModal.lon = e.lnglat.getLng().toFixed(6);
+      poiModal.lat = e.lnglat.getLat().toFixed(6);
+      poiPickMode.value = false;
+      poiModal.show = true;
+    }
+  });
+
+  // Restore saved auth
+  const savedToken = localStorage.getItem('poi_token');
+  const savedUser = localStorage.getItem('poi_user');
+  if (savedToken && savedUser) {
+    token.value = savedToken;
+    currentUser.value = savedUser;
+    authUsername.value = savedUser;
+    authenticated.value = true;
+    loadStats();
+  }
+
+  window._poiEdit = (id) => editPoi(id);
+  window._poiDelete = (id) => deletePoi(id);
+});
+
+// ═══ API helper: Bearer JWT auth ═══
+async function api(ep, method = 'GET', body = null, noError = false) {
+  const headers = {};
+  if (token.value) headers['Authorization'] = 'Bearer ' + token.value;
+  const opts = { method, headers };
+  if (body) {
+    headers['Content-Type'] = 'application/json';
+    opts.body = JSON.stringify(body);
+  }
+  try {
+    const r = await fetch(BASE + ep, opts);
+    const d = await r.json();
+    if (!r.ok) {
+      if (r.status === 401) {
+        logout();
+        throw new Error('登录已过期，请重新登录');
+      }
+      throw new Error(d.detail || '请求失败 (' + r.status + ')');
+    }
+    if (!noError) errorMsg.value = '';
+    return d;
+  } catch (e) {
+    if (!noError) {
+      errorMsg.value = e.message || '请求失败';
+    }
+    return null;
+  }
+}
+
+// ═══ Auth ═══
+async function login() {
+  authMsg.value = '';
+  if (!authUsername.value || !authPassword.value) {
+    authMsg.value = '请输入用户名和密码'; return;
+  }
+  const d = await api('/login', 'POST', {
+    username: authUsername.value,
+    password: authPassword.value
+  }, true);
+  if (d && d.access_token) {
+    errorMsg.value = '';
+    token.value = d.access_token;
+    currentUser.value = authUsername.value;
+    authenticated.value = true;
+    localStorage.setItem('poi_token', d.access_token);
+    localStorage.setItem('poi_user', authUsername.value);
+    authPassword.value = '';
+    authMsg.value = '';
+    loadStats();
+  } else {
+    let msg = '登录失败';
+    if (errorMsg.value) {
+      msg = errorMsg.value.replace('USER NOT FOUND','用户不存在').replace('密码错误','密码错误');
+      errorMsg.value = '';
+    }
+    authMsg.value = msg;
+    setTimeout(() => { authMsg.value = ''; }, 2000);
+  }
+}
+
+async function register() {
+  authMsg.value = '';
+  if (!authUsername.value || !authPassword.value) {
+    authMsg.value = '请输入用户名和密码'; return;
+  }
+  if (authPassword.value.length < 4) {
+    authMsg.value = '密码至少4位'; return;
+  }
+  const d = await api('/register', 'POST', {
+    username: authUsername.value,
+    password: authPassword.value
+  }, true);
+  if (d && d.message) {
+    authMsg.value = d.message + '，请登录';
+    // auto-login after register
+    await login();
+  }
+}
+
+function logout() {
+  token.value = '';
+  currentUser.value = '';
+  authenticated.value = false;
+  authUsername.value = '';
+  authPassword.value = '';
+  localStorage.removeItem('poi_token');
+  localStorage.removeItem('poi_user');
+  results.value = null;
+  clearMarkers();
+  stats.total = '—'; stats.provinces = '—'; stats.types = '—';
+}
+
+// ═══ Stats ═══
+async function loadStats() {
+  if (!authenticated.value) return;
+  // Get total count from /pois
+  const allData = await api('/pois?page_size=1');
+  if (allData) stats.total = (allData.total || 0).toLocaleString();
+
+  // Get province count from /stats/province
+  const provData = await api('/stats/province');
+  if (provData) stats.provinces = provData.length || '—';
+
+  // Get type count from /stats/type
+  const typeData = await api('/stats/type');
+  if (typeData) stats.types = typeData.length || '—';
+}
+
+// ═══ Search ═══
+async function search() {
+  if (!authenticated.value) {
+    errorMsg.value = '请先登录后再查询';
+    return;
+  }
+  errorMsg.value = ''; loading.value = true; showFilter.value = false;
+  const params = ['page_size=5000'];
+  if (filters.name) params.push('keyword=' + encodeURIComponent(filters.name));
+  if (filters.province) params.push('province=' + encodeURIComponent(filters.province));
+  if (filters.type) params.push('type=' + encodeURIComponent(filters.type));
+  if (filters.batch) params.push('batch=' + encodeURIComponent(filters.batch));
+  const ep = '/pois?' + params.join('&');
+  const d = await api(ep);
+  loading.value = false;
+  if (d && d.items) {
+    results.value = d.items;
+    renderMarkers(results.value);
+  } else {
+    errorMsg.value = '无查询结果';
+  }
+}
+
+// ═══ Bbox search ═══
+async function searchByBbox(mnLon, mnLat, mxLon, mxLat) {
+  if (!authenticated.value) {
+    errorMsg.value = '请先登录后再查询';
+    return;
+  }
+  errorMsg.value = ''; loading.value = true; mouseTool.close(true); drawMode.value = false;
+  const ep = '/pois?lon_min=' + mnLon + '&lat_min=' + mnLat + '&lon_max=' + mxLon + '&lat_max=' + mxLat + '&page_size=5000';
+  const d = await api(ep);
+  loading.value = false;
+  if (d && d.items) {
+    results.value = d.items;
+    renderMarkers(results.value);
+  }
+}
+
+function toggleDraw() {
+  if (!authenticated.value) { errorMsg.value = '请先登录'; return; }
+  if (drawMode.value) {
+    mouseTool.close(true);
+    drawMode.value = false;
+  } else {
+    mouseTool.rectangle({ strokeColor: '#d4973b', strokeWeight: 2, strokeOpacity: 0.9, fillColor: '#d4973b', fillOpacity: 0.06 });
+    drawMode.value = true;
+  }
+}
+
+// ═══ Radius search ═══
+function toggleRadius() {
+  if (!authenticated.value) { errorMsg.value = '请先登录'; return; }
+  radiusMode.value = !radiusMode.value;
+  if (!radiusMode.value) {
+    radiusCenter.value = '';
+  }
+}
+
+async function radiusSearch() {
+  if (!authenticated.value) { errorMsg.value = '请先登录'; return; }
+  if (!radiusCenter.value) { errorMsg.value = '请先在地图上点击选择中心点'; return; }
+  if (!radiusVal.value || radiusVal.value <= 0) { errorMsg.value = '请输入有效半径'; return; }
+
+  errorMsg.value = ''; loading.value = true;
+  // Parse "lon, lat" from radiusCenter
+  const parts = radiusCenter.value.split(',').map(s => parseFloat(s.trim()));
+  if (parts.length !== 2 || isNaN(parts[0]) || isNaN(parts[1])) {
+    errorMsg.value = '坐标格式错误'; loading.value = false; return;
+  }
+  const ep = '/pois/radius?lon=' + parts[0] + '&lat=' + parts[1] + '&radius=' + radiusVal.value + '&page_size=5000';
+  const d = await api(ep);
+  loading.value = false;
+  if (d && d.items) {
+    results.value = d.items;
+    renderMarkers(results.value);
+    // Draw radius circle on map
+    drawRadiusCircle(parts[0], parts[1], radiusVal.value);
+  }
+}
+
+let radiusCircle = null;
+function drawRadiusCircle(lon, lat, radiusM) {
+  if (radiusCircle) map.remove(radiusCircle);
+  radiusCircle = new AMap.Circle({
+    center: [lon, lat],
+    radius: radiusM,
+    strokeColor: '#d4973b',
+    strokeWeight: 2,
+    strokeOpacity: 0.7,
+    fillColor: '#d4973b',
+    fillOpacity: 0.08,
+    strokeStyle: 'dashed'
+  });
+  map.add(radiusCircle);
+  map.setFitView([radiusCircle]);
+}
+
+// ═══ Buffer analysis ═══
+function openBuffer(item) {
+  if (!authenticated.value) { errorMsg.value = '请先登录'; return; }
+  bufferModal.show = true;
+  bufferModal.poiId = item.id;
+  bufferModal.poiName = item.name;
+  bufferModal.radius = null;
+  bufferModal.loading = false;
+  bufferModal.result = null;
+  bufferModal.error = '';
+}
+
+function closeBuffer() {
+  bufferModal.show = false;
+}
+
+async function doBufferAnalysis() {
+  if (!bufferModal.radius || bufferModal.radius <= 0 || bufferModal.radius > 200000) {
+    bufferModal.error = '半径需在 1-200000 米之间';
+    return;
+  }
+  bufferModal.loading = true;
+  bufferModal.error = '';
+  bufferModal.result = null;
+
+  const ep = '/pois/' + bufferModal.poiId + '/buffer?radius=' + bufferModal.radius + '&page_size=5000&format=geojson';
+  const d = await api(ep);
+  bufferModal.loading = false;
+
+  if (d) {
+    bufferModal.result = {
+      total: d.total || 0,
+      area: d.buffer_area_ha || 0,
+      features: d.features || [],
+      buffer_geometry: d.buffer_geometry || null,
+      centerPoi: { id: bufferModal.poiId, name: bufferModal.poiName }
+    };
+    // Draw buffer polygon on map
+    drawBufferOnMap(d.buffer_geometry, bufferModal.result.features);
+  }
+}
+
+function drawBufferOnMap(geoJSON, features) {
+  clearBufferOnMap();
+
+  // Draw buffer polygon
+  if (geoJSON) {
+    // AMap.GeoJSON expects Feature or FeatureCollection
+    const fc = { type: 'Feature', geometry: geoJSON, properties: {} };
+    try {
+      // Manually create polygon from coordinates
+      let coords;
+      if (geoJSON.type === 'Polygon') {
+        coords = geoJSON.coordinates[0]; // outer ring
+      } else if (geoJSON.type === 'MultiPolygon') {
+        coords = geoJSON.coordinates[0][0];
+      }
+      if (coords) {
+        const path = coords.map(c => [c[0], c[1]]);
+        const poly = new AMap.Polygon({
+          path: path,
+          strokeColor: '#d4973b',
+          strokeWeight: 2,
+          strokeOpacity: 0.8,
+          fillColor: '#d4973b',
+          fillOpacity: 0.12,
+          strokeStyle: 'solid'
+        });
+        map.add(poly);
+        bufferPolygons.push(poly);
+      }
+    } catch (e) {
+      console.warn('Buffer polygon render error:', e);
+    }
+  }
+
+  // Draw buffer result markers in a different color
+  if (features && features.length > 0) {
+    features.forEach(f => {
+      const props = f.properties || {};
+      const coords = f.geometry && f.geometry.coordinates;
+      if (!coords) return;
+      const m = new AMap.Marker({
+        position: [coords[0], coords[1]],
+        title: props.name || '',
+        content: '<div style="width:8px;height:8px;background:#4da6d4;border-radius:50%;border:2px solid rgba(255,255,255,0.9);box-shadow:0 0 8px rgba(77,166,212,0.5)"></div>',
+        offset: new AMap.Pixel(-4, -4)
+      });
+      m._bufData = { id: 'buf_'+Math.random(), name: props.name, lon: coords[0], lat: coords[1], type: props.type, age: props.age, batch: props.batch, address: props.address, remark: props.remark };
+      m._open = false;
+      m.on('click', () => {
+        if (m._open) { map.clearInfoWindow(); m._open = false; infoWindow = null; }
+        else {
+          markers.forEach(x => x._open = false);
+          bufferMarkers.forEach(x => x._open = false);
+          openInfoWin(m._bufData);
+          m._open = true;
+        }
+      });
+      map.add(m);
+      bufferMarkers.push(m);
+    });
+  }
+
+  if (bufferPolygons.length > 0) {
+    map.setFitView(bufferPolygons);
+  }
+}
+
+function viewBufferResults() {
+  if (bufferModal.result && bufferModal.result.features) {
+    const items = bufferModal.result.features.map(f => ({
+      id: 'buf_' + Math.random(),
+      name: f.properties.name,
+      type: f.properties.type,
+      age: f.properties.age,
+      batch: f.properties.batch,
+      address: f.properties.address,
+      remark: f.properties.remark,
+      lon: f.geometry.coordinates[0],
+      lat: f.geometry.coordinates[1]
+    }));
+    results.value = items;
+    viewMode.value = 'card';
+    closeBuffer();
+  }
+}
+
+function clearBufferOnMap() {
+  bufferPolygons.forEach(p => map.remove(p));
+  bufferPolygons = [];
+  bufferMarkers.forEach(m => map.remove(m));
+  bufferMarkers = [];
+}
+
+// ═══ Markers ═══
+function renderMarkers(items) {
+  clearMarkers();
+  if (!items) return;
+  items.forEach(it => {
+    if (!it.lon || !it.lat) return;
+    const m = new AMap.Marker({
+      position: [it.lon, it.lat], title: it.name,
+      content: '<div style="position:relative;white-space:nowrap"><div style="width:8px;height:8px;background:#d4973b;border-radius:50%;border:2px solid rgba(255,255,255,0.9);box-shadow:0 0 8px rgba(212,151,59,0.5)"></div><div style="position:absolute;left:14px;top:-7px;padding:2px 8px;background:rgba(18,23,33,0.9);border:1px solid rgba(255,255,255,0.12);border-radius:4px;font-size:11px;color:#e8ecf1;font-family:-apple-system,PingFang SC,Microsoft YaHei,sans-serif;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);max-width:160px;overflow:hidden;text-overflow:ellipsis">' + it.name + '</div></div>',
+      offset: new AMap.Pixel(-4, -4)
+    });
+    m._d = it; m._open = false;
+    m.on('click', () => {
+      if (m._open) { map.clearInfoWindow(); m._open = false; infoWindow = null; }
+      else { markers.forEach(x => x._open = false); openInfoWin(it); m._open = true; }
+    });
+    markers.push(m); map.add(m);
+  });
+  markerCount.value = markers.length;
+  if (markers.length > 0) map.setFitView(markers);
+}
+
+function clearMarkers() {
+  markers.forEach(m => map.remove(m));
+  markers = []; markerCount.value = 0;
+  if (rectangle) { map.remove(rectangle); rectangle = null; }
+  if (radiusCircle) { map.remove(radiusCircle); radiusCircle = null; }
+  clearBufferOnMap();
+}
+
+// ═══ InfoWindow ═══
+function openInfoWin(it) {
+  if (infoWindow) { map.clearInfoWindow(); infoWindow = null; }
+  markers.forEach(m => m._open = false);
+  bufferMarkers.forEach(m => m._open = false);
+  let h = '<div style="padding:14px 16px;font-family:-apple-system,PingFang SC,Microsoft YaHei,sans-serif;max-width:280px;background:rgba(18,23,33,0.95);border:1px solid rgba(255,255,255,0.12);border-radius:10px;color:#e8ecf1;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);box-shadow:0 8px 24px rgba(0,0,0,0.5)"><div style="font-family:\'Noto Serif SC\',\'PingFang SC\',\'Microsoft YaHei\',serif;font-size:15px;font-weight:600;margin-bottom:8px;color:#d4973b">' + it.name + '</div><div style="font-size:12px;color:#8b95a5;line-height:1.8">';
+  if (it.type) h += '<div>类型：' + it.type + '</div>';
+  if (it.age) h += '<div>年代：' + it.age + '</div>';
+  if (it.batch) h += '<div>批次：' + it.batch + '</div>';
+  if (it.address) h += '<div>地址：' + it.address + '</div>';
+  h += '<div>坐标：' + (it.lon || 0).toFixed(5) + ', ' + (it.lat || 0).toFixed(5) + '</div>';
+  if (it.remark) h += '<div style="margin-top:4px;color:#d4973b">备注：' + it.remark + '</div>';
+  if (it.id) h += '<div style="margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.08);display:flex;gap:6px"><a href="javascript:void(0)" onclick="window._poiEdit(' + it.id + ')" style="font-size:11px;color:#d4973b;text-decoration:none">✎ 编辑</a><a href="javascript:void(0)" onclick="window._poiDelete(' + it.id + ')" style="font-size:11px;color:var(--danger);text-decoration:none">✕ 删除</a></div>';
+  h += '</div></div>';
+  infoWindow = new AMap.InfoWindow({ content: h, offset: new AMap.Pixel(0, -8), isCustom: true });
+  infoWindow.open(map, [it.lon, it.lat]);
+  const m = markers.find(x => x._d.id === it.id);
+  if (m) m._open = true;
+}
+
+function focusPoi(it) {
+  map.setZoomAndCenter(15, [it.lon, it.lat]);
+  openInfoWin(it);
+}
+
+function clearSearch() {
+  filters.name = ''; filters.province = ''; filters.type = ''; filters.batch = '';
+  showFilter.value = false;
+  results.value = null; errorMsg.value = ''; clearMarkers();
+}
+
+function doReset() {
+  clearSearch();
+  viewMode.value = 'card';
+}
+
+// ═══ POI CRUD ═══
+function openAddPoi() {
+  poiModal.show = true;
+  poiModal.editing = false;
+  poiModal.id = null;
+  poiModal.name = ''; poiModal.type = ''; poiModal.age = '';
+  poiModal.address = ''; poiModal.batch = '';
+  poiModal.lon = ''; poiModal.lat = ''; poiModal.remark = '';
+  poiModal.loading = false; poiModal.error = '';
+}
+
+function editPoi(id) {
+  const item = results.value ? results.value.find(x => x.id === id) : null;
+  const src = item || markers.reduce((f, m) => f || (m._d && m._d.id === id ? m._d : null), null);
+  if (!src) { errorMsg.value = '未找到该文物数据'; return; }
+  poiModal.show = true;
+  poiModal.editing = true;
+  poiModal.id = src.id;
+  poiModal.name = src.name || '';
+  poiModal.type = src.type || '';
+  poiModal.age = src.age || '';
+  poiModal.address = src.address || '';
+  poiModal.batch = src.batch || '';
+  poiModal.lon = src.lon != null ? src.lon.toString() : '';
+  poiModal.lat = src.lat != null ? src.lat.toString() : '';
+  poiModal.remark = src.remark || '';
+  poiModal.loading = false; poiModal.error = '';
+}
+
+function closePoiModal() {
+  poiModal.show = false;
+  poiPickMode.value = false;
+}
+
+function pickCoords() {
+  if (poiPickMode.value) {
+    // Cancel pick mode
+    poiPickMode.value = false;
+    poiModal.show = true;
+  } else {
+    // Enter pick mode: hide modal, user clicks map
+    poiModal.show = false;
+    poiPickMode.value = true;
+  }
+}
+
+function cancelPickCoords() {
+  poiPickMode.value = false;
+  poiModal.show = true;
+}
+
+async function savePoi() {
+  if (!poiModal.name) { poiModal.error = '请输入名称'; return; }
+  const lon = parseFloat(poiModal.lon);
+  const lat = parseFloat(poiModal.lat);
+  if (isNaN(lon) || isNaN(lat)) { poiModal.error = '请输入有效经纬度'; return; }
+  poiModal.loading = true; poiModal.error = '';
+  const body = {
+    name: poiModal.name, type: poiModal.type, age: poiModal.age,
+    address: poiModal.address, batch: poiModal.batch,
+    lat: lat, lon: lon, remark: poiModal.remark
+  };
+  let d;
+  if (poiModal.editing) {
+    d = await api('/pois/' + poiModal.id, 'PUT', body);
+  } else {
+    d = await api('/pois', 'POST', body);
+  }
+  poiModal.loading = false;
+  if (d && d.message) {
+    closePoiModal();
+    search();
+  }
+}
+
+async function deletePoi(id) {
+  if (!confirm('确定要删除该文物记录吗？此操作不可撤销。')) return;
+  const d = await api('/pois/' + id, 'DELETE');
+  if (d && d.message) {
+    if (poiModal.show && poiModal.id === id) closePoiModal();
+    if (results.value) search();
+  }
+}
+
+function zoomIn() { map.setZoom(map.getZoom() + 1); }
+function zoomOut() { map.setZoom(map.getZoom() - 1); }
+function resetView() { map.setZoomAndCenter(4.5, [105, 35]); }
+
+// ═══ Return all reactive state + methods ═══
+return {
+  loading, results, errorMsg, drawMode, markerCount, viewMode, showFilter,
+  stats, filters, provinces, types, batches,
+  // Auth
+  authenticated, authUsername, authPassword, authMsg, token, currentUser,
+  login, register, logout,
+  // Radius query
+  radiusMode, radiusCenter, radiusVal, toggleRadius, radiusSearch,
+  // Buffer analysis
+  bufferModal, openBuffer, closeBuffer, doBufferAnalysis, viewBufferResults, clearBufferOnMap,
+  // POI CRUD
+  poiModal, poiPickMode, openAddPoi, editPoi, closePoiModal, savePoi, deletePoi, pickCoords, cancelPickCoords,
+  // Search / Map
+  search, clearSearch, doReset, toggleDraw, focusPoi, zoomIn, zoomOut, resetView
+};
+}}).mount('#app');
+</script>
+</body>
+</html>

@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+psycopg2
+pyjwt
+redis
+pydantic
+passlib
+bcrypt==4.0.1
+python-dotenv
+pandas
