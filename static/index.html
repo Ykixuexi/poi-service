@@ -99,6 +99,11 @@ body{
 .filter-panel select option{color:var(--text);background:#121721}
 .filter-panel select:hover{border-color:var(--border-focus)}
 .filter-panel select:focus{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-glow)}
+/* Dark scrollbar for select dropdowns */
+select::-webkit-scrollbar{width:8px}
+select::-webkit-scrollbar-track{background:#121721}
+select::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.18);border-radius:4px}
+select::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,0.28)}
 
 /* ═══ Map Controls (top right) ═══ */
 .map-ctrls{
@@ -116,7 +121,7 @@ body{
 
 /* ═══ Stats Badge (bottom-left, above carousel) ═══ */
 .stats-badge{
-  position:absolute;bottom:190px;left:16px;z-index:20;
+  position:absolute;bottom:280px;left:16px;z-index:20;
   display:flex;gap:16px;padding:8px 16px;
   background:var(--surface);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
   border:1px solid var(--border);border-radius:var(--radius-pill);
@@ -237,6 +242,10 @@ body{
 .buffer-dialog .btns .btn-confirm{background:var(--accent);color:#0b0f15}
 .buffer-dialog .result{font-size:12px;color:var(--text-muted);margin-top:10px;line-height:1.6}
 .buffer-dialog .result strong{color:var(--accent)}
+.buffer-dialog::-webkit-scrollbar{width:5px}
+.buffer-dialog::-webkit-scrollbar-track{background:transparent}
+.buffer-dialog::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.12);border-radius:3px}
+.buffer-dialog::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,0.22)}
 
 /* ═══ States ═══ */
 .state-float{
@@ -263,7 +272,7 @@ body{
   .search-float{padding:6px 6px 6px 14px;gap:4px}
   .search-float .chip{padding:5px 10px;font-size:11px}
   .carousel-card{min-width:200px;max-width:220px}
-  .stats-badge{bottom:170px;font-size:10px;gap:10px;padding:6px 12px}
+  .stats-badge{bottom:260px;font-size:10px;gap:10px;padding:6px 12px}
 }
 </style>
 </head>
@@ -278,6 +287,7 @@ body{
     <div class="chip" :class="{on:showFilter}" @click="showFilter=!showFilter">筛选</div>
     <div class="chip" :class="{on:drawMode}" @click="toggleDraw">框选</div>
     <div class="chip" @click="doReset">重置</div>
+    <div class="chip" :class="{on:statsModal.show}" @click="openStats">统计</div>
     <button class="btn-search" @click="search" :disabled="loading">→</button>
   </div>
 
@@ -310,6 +320,9 @@ body{
     <span style="color:var(--text-muted)">· 已登录</span>
     <button style="padding:4px 12px;font-size:11px;font-weight:600;border:none;border-radius:var(--radius-pill);cursor:pointer;background:rgba(255,255,255,0.06);color:var(--text-muted)" @click="logout">退出</button>
   </div>
+
+  <!-- Toast -->
+  <div style="position:absolute;top:70px;left:50%;transform:translateX(-50%);z-index:102;padding:8px 20px;background:var(--surface);backdrop-filter:blur(12px);border:1px solid var(--border);border-radius:var(--radius-pill);font-size:13px;color:var(--text);box-shadow:0 4px 16px rgba(0,0,0,0.4);pointer-events:none;transition:opacity 0.3s" :style="{opacity:toastMsg?'1':'0'}" v-if="toastMsg">{{toastMsg}}</div>
 
   <!-- Radius Control -->
   <div style="position:absolute;top:120px;left:16px;z-index:20;background:var(--surface);backdrop-filter:blur(12px);border:1px solid var(--border);border-radius:var(--radius);padding:12px;display:flex;flex-direction:column;gap:6px;min-width:180px" v-if="radiusMode">
@@ -457,6 +470,50 @@ body{
     </div>
   </div>
 
+  <!-- ═══ Stats Modal ═══ -->
+  <div class="buffer-overlay" v-if="statsModal.show" @click.self="closeStats">
+    <div class="buffer-dialog" style="max-width:640px;max-height:80vh;overflow-y:auto">
+      <h3>数据统计</h3>
+      <div class="sub">全库文物分布概览</div>
+      <div v-if="statsModal.loading" style="text-align:center;padding:20px;color:var(--text-muted)">加载中…</div>
+      <div v-else>
+        <div style="margin-bottom:18px">
+          <div style="font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:6px">按类型</div>
+          <table style="width:100%;font-size:12px;border-collapse:collapse">
+            <tr v-for="r in statsModal.typeData" style="border-bottom:1px solid rgba(255,255,255,0.04)">
+              <td style="padding:6px 0;color:var(--text)">{{r.name}}</td>
+              <td style="padding:6px 0;text-align:right;font-weight:600;color:var(--accent)">{{r.count}}</td>
+              <td style="padding:6px 0;text-align:right;color:var(--text-muted);width:60px">{{ statsModal.total ? (r.count/statsModal.total*100).toFixed(1)+'%' : '' }}</td>
+            </tr>
+          </table>
+        </div>
+        <div style="margin-bottom:18px">
+          <div style="font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:6px">按批次</div>
+          <table style="width:100%;font-size:12px;border-collapse:collapse">
+            <tr v-for="r in statsModal.batchData" style="border-bottom:1px solid rgba(255,255,255,0.04)">
+              <td style="padding:6px 0;color:var(--text)">{{r.name}}</td>
+              <td style="padding:6px 0;text-align:right;font-weight:600;color:var(--accent)">{{r.count}}</td>
+              <td style="padding:6px 0;text-align:right;color:var(--text-muted);width:60px">{{ statsModal.total ? (r.count/statsModal.total*100).toFixed(1)+'%' : '' }}</td>
+            </tr>
+          </table>
+        </div>
+        <div>
+          <div style="font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:6px">按省份（Top 15）</div>
+          <table style="width:100%;font-size:12px;border-collapse:collapse">
+            <tr v-for="r in statsModal.provData.slice(0,15)" style="border-bottom:1px solid rgba(255,255,255,0.04)">
+              <td style="padding:6px 0;color:var(--text)">{{r.name}}</td>
+              <td style="padding:6px 0;text-align:right;font-weight:600;color:var(--accent)">{{r.count}}</td>
+              <td style="padding:6px 0;text-align:right;color:var(--text-muted);width:60px">{{ statsModal.total ? (r.count/statsModal.total*100).toFixed(1)+'%' : '' }}</td>
+            </tr>
+          </table>
+        </div>
+      </div>
+      <div class="btns" style="margin-top:14px">
+        <button class="btn-cancel" @click="closeStats">关闭</button>
+      </div>
+    </div>
+  </div>
+
 </div>
 
 <script>
@@ -480,6 +537,15 @@ const authMsg = ref('');
 const token = ref('');
 const currentUser = ref('');
 
+// ── Toast ──
+const toastMsg = ref('');
+let toastTimer = null;
+function showToast(msg, dur = 2800) {
+  toastMsg.value = msg;
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { toastMsg.value = ''; }, dur);
+}
+
 // ── Radius query state ──
 const radiusMode = ref(false);
 const radiusCenter = ref('');
@@ -501,6 +567,12 @@ const bufferModal = reactive({
 });
 let bufferPolygons = [];   // track buffer polygons on map
 let bufferMarkers = [];    // track buffer result markers
+
+// ── Stats modal state ──
+const statsModal = reactive({
+  show: false, loading: false, total: 0,
+  provData: [], typeData: [], batchData: []
+});
 
 const BASE = window.location.origin;
 let map = null, markers = [], rectangle = null, mouseTool = null;
@@ -643,17 +715,48 @@ function logout() {
 // ═══ Stats ═══
 async function loadStats() {
   if (!authenticated.value) return;
-  // Get total count from /pois
   const allData = await api('/pois?page_size=1');
   if (allData) stats.total = (allData.total || 0).toLocaleString();
-
-  // Get province count from /stats/province
   const provData = await api('/stats/province');
   if (provData) stats.provinces = provData.length || '—';
-
-  // Get type count from /stats/type
   const typeData = await api('/stats/type');
   if (typeData) stats.types = typeData.length || '—';
+}
+
+async function openStats() {
+  if (!authenticated.value) { errorMsg.value = '请先登录'; return; }
+  statsModal.show = true;
+  statsModal.loading = true;
+  const [provData, typeData, batchData, allData] = await Promise.all([
+    api('/stats/province'),
+    api('/stats/type'),
+    api('/stats/batch'),
+    api('/pois?page_size=1')
+  ]);
+  statsModal.total = allData ? allData.total : 0;
+  statsModal.provData = provData || [];
+  statsModal.typeData = typeData || [];
+  statsModal.batchData = batchData || [];
+  statsModal.loading = false;
+}
+
+function closeStats() {
+  statsModal.show = false;
+}
+
+function updateStatsFromResults(items) {
+  if (!items || items.length === 0) return;
+  stats.total = items.length.toLocaleString();
+  const provSet = new Set();
+  items.forEach(r => {
+    if (r.address) {
+      const m = r.address.match(/^(北京|天津|上海|重庆|河北|山西|内蒙古|辽宁|吉林|黑龙江|江苏|浙江|安徽|福建|江西|山东|河南|湖北|湖南|广东|广西|海南|四川|贵州|云南|西藏|陕西|甘肃|青海|宁夏|新疆|香港|澳门|台湾)/);
+      if (m) provSet.add(m[1]);
+    }
+  });
+  stats.provinces = provSet.size || '—';
+  const typeSet = new Set(items.map(r => r.type).filter(Boolean));
+  stats.types = typeSet.size || '—';
 }
 
 // ═══ Search ═══
@@ -671,11 +774,15 @@ async function search() {
   const ep = '/pois?' + params.join('&');
   const d = await api(ep);
   loading.value = false;
-  if (d && d.items) {
+  if (d && d.items && d.items.length > 0) {
     results.value = d.items;
     renderMarkers(results.value);
+    updateStatsFromResults(results.value);
   } else {
-    errorMsg.value = '无查询结果';
+    results.value = null;
+    clearMarkers();
+    loadStats();
+    showToast('未找到匹配的文物，请调整条件后重试');
   }
 }
 
@@ -689,9 +796,15 @@ async function searchByBbox(mnLon, mnLat, mxLon, mxLat) {
   const ep = '/pois?lon_min=' + mnLon + '&lat_min=' + mnLat + '&lon_max=' + mxLon + '&lat_max=' + mxLat + '&page_size=5000';
   const d = await api(ep);
   loading.value = false;
-  if (d && d.items) {
+  if (d && d.items && d.items.length > 0) {
     results.value = d.items;
     renderMarkers(results.value);
+    updateStatsFromResults(results.value);
+  } else {
+    results.value = null;
+    clearMarkers();
+    loadStats();
+    showToast('框选区域内未找到文物');
   }
 }
 
@@ -729,11 +842,16 @@ async function radiusSearch() {
   const ep = '/pois/radius?lon=' + parts[0] + '&lat=' + parts[1] + '&radius=' + radiusVal.value + '&page_size=5000';
   const d = await api(ep);
   loading.value = false;
-  if (d && d.items) {
+  if (d && d.items && d.items.length > 0) {
     results.value = d.items;
     renderMarkers(results.value);
-    // Draw radius circle on map
+    updateStatsFromResults(results.value);
     drawRadiusCircle(parts[0], parts[1], radiusVal.value);
+  } else {
+    results.value = null;
+    clearMarkers();
+    loadStats();
+    showToast('该半径范围内未找到文物');
   }
 }
 
@@ -953,6 +1071,7 @@ function clearSearch() {
 function doReset() {
   clearSearch();
   viewMode.value = 'card';
+  loadStats();
 }
 
 // ═══ POI CRUD ═══
@@ -1026,6 +1145,7 @@ async function savePoi() {
   poiModal.loading = false;
   if (d && d.message) {
     closePoiModal();
+    loadStats();
     search();
   }
 }
@@ -1035,6 +1155,7 @@ async function deletePoi(id) {
   const d = await api('/pois/' + id, 'DELETE');
   if (d && d.message) {
     if (poiModal.show && poiModal.id === id) closePoiModal();
+    loadStats();
     if (results.value) search();
   }
 }
@@ -1050,12 +1171,16 @@ return {
   // Auth
   authenticated, authUsername, authPassword, authMsg, token, currentUser,
   login, register, logout,
+  // Toast
+  toastMsg, showToast,
   // Radius query
   radiusMode, radiusCenter, radiusVal, toggleRadius, radiusSearch,
   // Buffer analysis
   bufferModal, openBuffer, closeBuffer, doBufferAnalysis, viewBufferResults, clearBufferOnMap,
   // POI CRUD
   poiModal, poiPickMode, openAddPoi, editPoi, closePoiModal, savePoi, deletePoi, pickCoords, cancelPickCoords,
+  // Stats
+  statsModal, openStats, closeStats,
   // Search / Map
   search, clearSearch, doReset, toggleDraw, focusPoi, zoomIn, zoomOut, resetView
 };
